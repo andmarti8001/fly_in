@@ -171,3 +171,143 @@ def test_round2_prune_then_build_graph_integration() -> None:
     assert [len(edges) for edges in graph] == [1, 2, 1]
     assert graph[0][0].to_hub == 1
     assert graph[0][0].max_link_capacity == 2
+
+
+def test_round2_has_solution_true_for_connected_graph() -> None:
+    Hub.reset_next_id()
+    hub_a = Hub("a", 0, 0)
+    hub_b = Hub("b", 1, 1)
+    hub_c = Hub("c", 2, 2)
+    graph = BaseGraph.graph_from_lists(
+        [hub_a, hub_b, hub_c],
+        [Connection("a", "c"), Connection("c", "b")],
+    )
+
+    assert BaseGraph.has_solution(graph, 0, 1) is True
+
+
+def test_round2_has_solution_false_for_disconnected_graph() -> None:
+    Hub.reset_next_id()
+    hub_a = Hub("a", 0, 0)
+    hub_b = Hub("b", 1, 1)
+    graph = BaseGraph.graph_from_lists([hub_a, hub_b], [])
+
+    assert BaseGraph.has_solution(graph, 0, 1) is False
+
+
+def test_round2_from_config_builds_graph_when_path_exists() -> None:
+    cfg = Config.from_file("maps/easy/01_linear_path.txt")
+
+    base_graph = BaseGraph.from_config(cfg)
+
+    assert isinstance(base_graph, BaseGraph)
+    assert len(base_graph.graph) == 4
+
+
+def test_round2_from_config_raises_when_no_path_exists(tmp_path: Path) -> None:
+    config_content = "\n".join(
+        [
+            "nb_drones: 1",
+            "start_hub: start 0 0",
+            "end_hub: end 2 2",
+            "hub: mid 1 1 [zone=blocked]",
+            "connection: start-mid",
+            "connection: mid-end",
+        ]
+    )
+    config_path = tmp_path / "no_path_after_prune.txt"
+    config_path.write_text(config_content, encoding="utf-8")
+    cfg = Config.from_file(str(config_path))
+
+    with pytest.raises(ValueError, match="No valid path from start_hub to end_hub"):
+        BaseGraph.from_config(cfg)
+
+
+# round 3 hardening
+def test_round3_has_solution_empty_graph_is_false() -> None:
+    assert BaseGraph.has_solution([]) is False
+
+
+def test_round3_has_solution_out_of_range_indices_are_false() -> None:
+    Hub.reset_next_id()
+    hub_a = Hub("a", 0, 0)
+    hub_b = Hub("b", 1, 1)
+    graph = BaseGraph.graph_from_lists([hub_a, hub_b], [Connection("a", "b")])
+
+    assert BaseGraph.has_solution(graph, -1, 1) is False
+    assert BaseGraph.has_solution(graph, 0, 10) is False
+
+
+def test_round3_has_solution_same_start_and_end_is_true() -> None:
+    Hub.reset_next_id()
+    hub_a = Hub("a", 0, 0)
+    graph = BaseGraph.graph_from_lists([hub_a], [])
+
+    assert BaseGraph.has_solution(graph, 0, 0) is True
+
+
+def test_round3_from_config_raises_when_start_hub_blocked(tmp_path: Path) -> None:
+    config_content = "\n".join(
+        [
+            "nb_drones: 1",
+            "start_hub: start 0 0",
+            "end_hub: end 2 2",
+            "hub: mid 1 1",
+            "connection: start-mid",
+            "connection: mid-end",
+        ]
+    )
+    config_path = tmp_path / "blocked_start_hub.txt"
+    config_path.write_text(config_content, encoding="utf-8")
+    cfg = Config.from_file(str(config_path))
+    cfg.start_hub.zone = ZoneType.BLOCKED
+
+    with pytest.raises(ValueError, match="start_hub or end_hub missing after pruning"):
+        BaseGraph.from_config(cfg)
+
+
+def test_round3_from_config_raises_when_end_hub_blocked(tmp_path: Path) -> None:
+    config_content = "\n".join(
+        [
+            "nb_drones: 1",
+            "start_hub: start 0 0",
+            "end_hub: end 2 2",
+            "hub: mid 1 1",
+            "connection: start-mid",
+            "connection: mid-end",
+        ]
+    )
+    config_path = tmp_path / "blocked_end_hub.txt"
+    config_path.write_text(config_content, encoding="utf-8")
+    cfg = Config.from_file(str(config_path))
+    cfg.end_hub.zone = ZoneType.BLOCKED
+
+    with pytest.raises(ValueError, match="start_hub or end_hub missing after pruning"):
+        BaseGraph.from_config(cfg)
+
+
+def test_round3_from_config_keeps_capacity_after_pruning(tmp_path: Path) -> None:
+    config_content = "\n".join(
+        [
+            "nb_drones: 1",
+            "start_hub: s 0 0",
+            "end_hub: e 3 3",
+            "hub: b 1 1 [zone=blocked]",
+            "hub: x 2 2",
+            "connection: s-b [max_link_capacity=9]",
+            "connection: b-e [max_link_capacity=8]",
+            "connection: s-x [max_link_capacity=4]",
+            "connection: x-e [max_link_capacity=6]",
+        ]
+    )
+    config_path = tmp_path / "capacity_after_prune.txt"
+    config_path.write_text(config_content, encoding="utf-8")
+    cfg = Config.from_file(str(config_path))
+
+    base_graph = BaseGraph.from_config(cfg)
+    graph = base_graph.graph
+
+    assert len(graph) == 3
+    assert [len(edges) for edges in graph] == [1, 1, 2]
+    assert graph[0][0].to_hub == 2
+    assert graph[0][0].max_link_capacity == 4

@@ -1,7 +1,10 @@
 
 from __future__ import annotations
 
+from collections import deque
+
 from models import Connection, Hub, ZoneType
+from parser import Config
 
 class BaseEdge:
     """ The Base Edge class that is the structure
@@ -100,16 +103,55 @@ class BaseGraph:
         ]
 
     @staticmethod
-    def has_solution(graph: list[list[BaseEdge]]) -> bool:
+    def has_solution(
+        graph: list[list[BaseEdge]],
+        start_hub_id: int = 0,
+        end_hub_id: int = 1,
+    ) -> bool:
         """ returns true if there is at least one valid path
         in the given adjacency list"""
-        # please use bfs to check
+        if not graph:
+            return False
+        if start_hub_id < 0 or start_hub_id >= len(graph):
+            return False
+        if end_hub_id < 0 or end_hub_id >= len(graph):
+            return False
+        if start_hub_id == end_hub_id:
+            return True
+
+        visited = [False] * len(graph)
+        queue = deque([start_hub_id])
+        visited[start_hub_id] = True
+
+        while queue:
+            current = queue.popleft()
+            for edge in graph[current]:
+                nxt = edge.to_hub
+                if nxt == end_hub_id:
+                    return True
+                if not visited[nxt]:
+                    visited[nxt] = True
+                    queue.append(nxt)
+        return False
 
     @classmethod
-    def from_config(cfg: Config) -> BaseGraph:
-    """ takes a config and returns an adjacency list
-    and prunes blocked zones and checks that the graph
-    has one valid solution """
+    def from_config(cls, cfg: Config) -> BaseGraph:
+        """ takes a config and returns an adjacency list
+        and prunes blocked zones and checks that the graph
+        has one valid solution """
+        pruned_hubs = cls.prune_hub_list(cfg.hubs)
+        pruned_connections = cls.prune_connection_list(cfg.connections, pruned_hubs)
+        graph = cls.graph_from_lists(pruned_hubs, pruned_connections)
+
+        start_hub_name = cfg.start_hub.name
+        end_hub_name = cfg.end_hub.name
+        hub_ids = {hub.name: hub.id for hub in pruned_hubs}
+        if start_hub_name not in hub_ids or end_hub_name not in hub_ids:
+            raise ValueError("start_hub or end_hub missing after pruning")
+
+        if not cls.has_solution(graph, hub_ids[start_hub_name], hub_ids[end_hub_name]):
+            raise ValueError("No valid path from start_hub to end_hub")
+        return cls(graph)
 
 
         
