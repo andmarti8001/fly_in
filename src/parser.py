@@ -78,86 +78,90 @@ class Config:
         Per-directive semantic validation is delegated to:
         ``_parse_nb_drones``, ``_parse_hub``, and ``_parse_connection``.
         """
-        all_keys: dict[str, dict[str, Any]] = {
-            "nb_drones": {
-                "func": cls._parse_nb_drones,
-                "no_dup": True,
-                "required": True,
-                "val": None,
-            },
-            "start_hub": {
-                "func": cls._parse_hub,
-                "no_dup": True,
-                "required": True,
-                "val": None,
-            },
-            "end_hub": {
-                "func": cls._parse_hub,
-                "no_dup": True,
-                "required": True,
-                "val": None,
-            },
-            "hub": {
-                "func": cls._parse_hub,
-                "no_dup": False,
-                "required": False,
-                "val": [],
-            },
-            "connection": {
-                "func": cls._parse_connection,
-                "no_dup": False,
-                "required": False,
-                "val": [],
-            },
-        }
+        Hub.reset_next_id()
+        try:
+            all_keys: dict[str, dict[str, Any]] = {
+                "nb_drones": {
+                    "func": cls._parse_nb_drones,
+                    "no_dup": True,
+                    "required": True,
+                    "val": None,
+                },
+                "start_hub": {
+                    "func": cls._parse_hub,
+                    "no_dup": True,
+                    "required": True,
+                    "val": None,
+                },
+                "end_hub": {
+                    "func": cls._parse_hub,
+                    "no_dup": True,
+                    "required": True,
+                    "val": None,
+                },
+                "hub": {
+                    "func": cls._parse_hub,
+                    "no_dup": False,
+                    "required": False,
+                    "val": [],
+                },
+                "connection": {
+                    "func": cls._parse_connection,
+                    "no_dup": False,
+                    "required": False,
+                    "val": [],
+                },
+            }
 
-        no_dup: set[str] = set()
-        with open(filename, 'r', encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line == "":
-                    continue
-                elif line[0] == '#':
-                    continue
-                if ":" not in line:
-                    raise ValueError("No ':' character in line")
-                key, value_str = line.split(":", 1)
-                key = key.strip()
-                if key not in all_keys:
-                    err_str = "Key must be 'nb_drones', "
-                    err_str += "'start_hub', 'end_hub', 'hub', "
-                    err_str += "or 'connection'"
-                    raise ValueError(err_str)
-                if key in no_dup:
-                    raise ValueError(f"{key} must not have duplicate configs")
-                if all_keys[key]["no_dup"]:
-                    no_dup.add(key)
-                if key in {"start_hub", "end_hub"}:
-                    hub = all_keys[key]["func"](value_str, key)
-                    all_keys["hub"]["val"].append(hub)
-                    all_keys[key]["val"] = hub
-                elif key in {"hub", "connection"}:
-                    parser_func = all_keys[key]["func"]
-                    all_keys[key]["val"].append(parser_func(value_str))
-                else:
-                    all_keys[key]["val"] = all_keys[key]["func"](value_str)
+            no_dup: set[str] = set()
+            with open(filename, 'r', encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line == "":
+                        continue
+                    elif line[0] == '#':
+                        continue
+                    if ":" not in line:
+                        raise ValueError("No ':' character in line")
+                    key, value_str = line.split(":", 1)
+                    key = key.strip()
+                    if key not in all_keys:
+                        err_str = "Key must be 'nb_drones', "
+                        err_str += "'start_hub', 'end_hub', 'hub', "
+                        err_str += "or 'connection'"
+                        raise ValueError(err_str)
+                    if key in no_dup:
+                        raise ValueError(f"{key} must not have duplicate configs")
+                    if all_keys[key]["no_dup"]:
+                        no_dup.add(key)
+                    if key in {"start_hub", "end_hub"}:
+                        hub = all_keys[key]["func"](value_str, key)
+                        all_keys["hub"]["val"].append(hub)
+                        all_keys[key]["val"] = hub
+                    elif key in {"hub", "connection"}:
+                        parser_func = all_keys[key]["func"]
+                        all_keys[key]["val"].append(parser_func(value_str))
+                    else:
+                        all_keys[key]["val"] = all_keys[key]["func"](value_str)
 
-        missing: list[str] = [
-            req_key
-            for req_key, req_config in all_keys.items()
-            if req_config["required"] and req_config["val"] is None
-        ]
-        if missing:
-            missing_str = ", ".join(missing)
-            raise ValueError(f"missing required config(s): {missing_str}")
+            missing: list[str] = [
+                req_key
+                for req_key, req_config in all_keys.items()
+                if req_config["required"] and req_config["val"] is None
+            ]
+            if missing:
+                missing_str = ", ".join(missing)
+                raise ValueError(f"missing required config(s): {missing_str}")
 
-        return Config._validate_names(cls(
-            all_keys['nb_drones']['val'],
-            all_keys['start_hub']['val'],
-            all_keys['end_hub']['val'],
-            all_keys['hub']['val'],
-            all_keys['connection']['val'],
-        ))
+            return Config._validate_names(cls(
+                all_keys['nb_drones']['val'],
+                all_keys['start_hub']['val'],
+                all_keys['end_hub']['val'],
+                all_keys['hub']['val'],
+                all_keys['connection']['val'],
+            ))
+        finally:
+            Hub.reset_next_id()
 
     @staticmethod
     def _parse_metadata(

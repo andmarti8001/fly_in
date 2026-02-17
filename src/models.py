@@ -83,6 +83,10 @@ class Hub:
         self.color = color
         self.max_drones = max_drones
 
+    @classmethod
+    def reset_next_id(cls) -> None:
+        cls._next_id = 0
+
     def print(self) -> None:
         print(f"id: {self.id}")
         print(f"name: {self.name}")

@@ -1,8 +1,0 @@
-→ Base adjacency list
-→ Static pruning (forbidden hubs + unreachable hubs)
-→ Choose time horizon T (start small)
-→ Time expansion
-→ Add hub-occupancy capacity per time step (node-splitting per (hub,time))
-→ Time-expanded pruning (forward/backward reachability windows)
-→ Min-Cost Max-Flow (send K drones)
-→ Flow decomposition (extract K paths / schedules)
