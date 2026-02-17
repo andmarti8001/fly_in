@@ -1,8 +1,7 @@
 
 from __future__ import annotations
 
-from parser import Config
-from models import Connection, Hub
+from models import Connection, Hub, ZoneType
 
 class BaseEdge:
     """ The Base Edge class that is the structure
@@ -43,6 +42,8 @@ class BaseGraph:
         if not hubs:
             raise ValueError("hubs list must not be empty")
         hub_map = { hub.name: hub.id for hub in hubs }
+        if len(hub_map) != len(hubs):
+            raise ValueError("Duplicate hub name found")
         max_hub_id = max(hub_map.values())
         len_hubs = len(hubs)
         if len_hubs != max_hub_id + 1:
@@ -65,7 +66,17 @@ class BaseGraph:
         """ takes a list of hubs and prunes any hub of type ZoneType.BLOCKED
         and then also reindexs the hubs so that the returned pruned list of
         hubs has continuous ids starting from zero """
-        pass
+
+        pruned_hubs = [
+            hub
+            for hub in hubs
+            if hub.zone != ZoneType.BLOCKED
+        ]
+
+        for idx, hub in enumerate(pruned_hubs):
+            hub.id = idx
+
+        return pruned_hubs
 
     @staticmethod
     def prune_connection_list(
@@ -75,6 +86,31 @@ class BaseGraph:
         """ takes a list of connections and simply removes connections that
         contains hubs of type ZoneType.BLOCKED and checks by referencing the
         given hubs list """
+
+        allowed_names = {
+            hub.name
+            for hub in hubs
+            if hub.zone != ZoneType.BLOCKED
+        }
+
+        return [
+            c
+            for c in connections
+            if c.hub1 in allowed_names and c.hub2 in allowed_names
+        ]
+
+    @staticmethod
+    def has_solution(graph: list[list[BaseEdge]]) -> bool:
+        """ returns true if there is at least one valid path
+        in the given adjacency list"""
+        # please use bfs to check
+
+    @classmethod
+    def from_config(cfg: Config) -> BaseGraph:
+    """ takes a config and returns an adjacency list
+    and prunes blocked zones and checks that the graph
+    has one valid solution """
+
 
         
         
