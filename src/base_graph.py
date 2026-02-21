@@ -27,6 +27,19 @@ class BaseGraph:
     def __init__ (self, graph: list[list[BaseEdge]]) -> None:
         self.graph = graph
 
+    def print(self) -> None:
+        """Print the base graph adjacency list."""
+        print("=== Base Graph ===")
+        for hub_id, edges in enumerate(self.graph):
+            if not edges:
+                print(f"{hub_id}: []")
+                continue
+            edge_str = ", ".join(
+                f"{edge.to_hub}(cap={edge.max_link_capacity})"
+                for edge in edges
+            )
+            print(f"{hub_id}: [{edge_str}]")
+
     @staticmethod
     def graph_from_lists(
         hubs: list[Hub],
@@ -152,3 +165,7 @@ class BaseGraph:
         if not cls.has_solution(graph, hub_ids[start_hub_name], hub_ids[end_hub_name]):
             raise ValueError("No valid path from start_hub to end_hub")
         return cls(graph)
+
+    def handle_restricted(self) -> None:
+        """ code adds 
+        self.
