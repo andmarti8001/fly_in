@@ -116,14 +116,3 @@ class Connection:
         print(f"hub1: {self.hub1}")
         print(f"hub2: {self.hub2}")
         print(f"max_link_capacity: {self.max_link_capacity}")
-
-
-# class FlyInManager:
-#     """ this class manages the map for fly_in 42 project """
-#     def __init__(
-#         self,
-#         nb_drones: int,
-#         hubs: list[Hub],
-#         connections: list[Connection],
-#         adjacency_list: dict[str, list[str]]
-#     ) -> None:
