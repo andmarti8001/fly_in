@@ -99,7 +99,7 @@ class Graph:
                     edges.append(Edge(
                         self.get_r_id(h_id), c.max_link_capacity, 1))
                 elif curr_dest == ZoneType.PRIORITY:
-                    edges.append(Edge(h_id, c.max_link_capacity, 0.8))
+                    edges.append(Edge(h_id, c.max_link_capacity, 0.99))
                 # if zone_type is NORMAL, START, or END
                 else:
                     edges.append(Edge(h_id, c.max_link_capacity, 1))
@@ -125,7 +125,11 @@ class Graph:
         for i in range(0, t):
             for j, vert in enumerate(base_graph):
                 if i == t - 1:
-                    expanded[self.get_id_time(j, i)] = Vertex(None, vert.cap)
+                    expanded[self.get_id_time(j, i)] = Vertex(
+                        None,
+                        vert.cap,
+                        vert.zone_type,
+                    )
                     continue
                 if vert.cap <= 0:
                     continue
@@ -140,6 +144,47 @@ class Graph:
                         self.get_id_time(e.to_hub, i + 1),
                         e.cap,
                         e.weight))
-                expanded[self.get_id_time(j, i)] = Vertex(edges, vert.cap)
+                expanded[self.get_id_time(j, i)] = Vertex(
+                    edges,
+                    vert.cap,
+                    vert.zone_type,
+                )
 
         return expanded
+
+    @staticmethod
+    def _fmt_edges(edges: list[Edge]) -> str:
+        if not edges:
+            return "[]"
+        joined = ", ".join(
+            f"{e.to_hub}(cap={e.cap},w={e.weight})"
+            for e in edges
+        )
+        return f"[{joined}]"
+
+    def print_base_graph(self, base_graph: list[Vertex] | None = None) -> None:
+        """Print the base adjacency structure ([base][transit])."""
+        graph_data = self.g if base_graph is None else base_graph
+        print("Base Graph")
+        print(f"hub_tot={self.hub_tot}, vertices={len(graph_data)}")
+        for idx, vert in enumerate(graph_data):
+            role = "base" if idx < self.hub_tot else "transit"
+            print(
+                f"[{idx:>3}] {role:<7} cap={vert.cap:<3} "
+                f"zone={vert.zone_type.value:<10} edges={self._fmt_edges(vert.edges)}"
+            )
+
+    def print_expanded_graph(self, expanded_graph: list[Vertex], t: int) -> None:
+        """Print the time-expanded graph layer by layer."""
+        print("Time Expanded Graph")
+        print(f"t={t}, hub_tot={self.hub_tot}, vertices={len(expanded_graph)}")
+        for layer in range(0, t):
+            print(f"Layer {layer}")
+            for local_id in range(0, 2 * self.hub_tot):
+                idx = self.get_id_time(local_id, layer)
+                vert = expanded_graph[idx]
+                role = "base" if local_id < self.hub_tot else "transit"
+                print(
+                    f"  [{idx:>3}] local={local_id:<3} {role:<7} cap={vert.cap:<3} "
+                    f"edges={self._fmt_edges(vert.edges)}"
+                )
