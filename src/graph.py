@@ -108,47 +108,36 @@ class Graph:
         return base_graph
             
                     
-    def get_expanded_list(self, base_graph: list[Vertex], t: int) -> list[Vertex]:
-        """Build the time-expanded graph over t layers.
+    def get_r_expanded_list(self, base_graph: list[Vertex], t: int) -> list[Vertex]:
+        """Build the reverse time-expanded graph over t layers.
 
-        For each time layer i:
-        - Base vertices (non-transit) get a wait edge to layer i+1.
-        - All movement edges are copied to layer i+1 with same cap/weight.
-        - Final layer stores vertices with no outgoing edges.
-
-        Constraint:
-        - Transit vertices have a no-wait rule: they never receive wait edges.
+        reverse meaning that the adjacency list goes backwards through time.
+        this is useful because you can trace the shortest path from the end
+        node, which avoids dead ends and cycles without pruning
+        
+        waiting constraint: transit-partners of restricted nodes can not
+        wait. once entered the move is fully committed. 
         """
         expanded_size = t * 2 * self.hub_tot
-        expanded: list[Vertex] = [Vertex(None, 0) for _ in range(0, expanded_size)]
+        expanded: list[Vertex] = [
+                    Vertex(None, vert.cap, vert.zone_type)
+                    for i in range(0, t)
+                    for vert in base_graph
+                    ]
 
         for i in range(0, t):
             for j, vert in enumerate(base_graph):
-                if i == t - 1:
-                    expanded[self.get_id_time(j, i)] = Vertex(
-                        None,
-                        vert.cap,
-                        vert.zone_type,
-                    )
-                    continue
-                if vert.cap <= 0:
-                    continue
-                edges: list[Edge] = []
-                if not self.is_transit(j):
-                    edges.append(Edge(
-                            self.get_id_time(j, i + 1),
+                if not self.is_transit(get_id_time(j, i))
+                    # wait connection but reverse
+                    expanded[get_id_time(j, i + 1)].edges.append(
+                            Edge(get_id_time(j, i),
                             self.inf,
                             0))
                 for e in vert.edges:
-                    edges.append(Edge(
-                        self.get_id_time(e.to_hub, i + 1),
-                        e.cap,
-                        e.weight))
-                expanded[self.get_id_time(j, i)] = Vertex(
-                    edges,
-                    vert.cap,
-                    vert.zone_type,
-                )
+                    expanded[get_id_time(j, i + 1)].edges.append(
+                            Edge(get_id_time(j, i),
+                            e.cap,
+                            e.weight))
 
         return expanded
 
