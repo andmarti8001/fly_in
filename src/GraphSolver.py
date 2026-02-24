@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import heapq
-from math import inf
+from heapq import heappush, heappop
 
 from graph import Graph
 from models import ZoneType
@@ -11,13 +10,14 @@ class GraphSolver:
     def __init__(self, graph: list[Vertex], nb_drones: int) -> None:
         self.graph = graph
         self.nb_drones = nb_drones
+        self.inf = 10000000
 
-    def find_path(self, sink_id: int) -> list[int] | None:
+    def find_path(self, end_id: int) -> list[int] | None:
         """Return the shortest path from given end_id
         to the start node at t(0).
         """
         graph = self.graph
-        num_v = len(nodes)
+        num_v = len(graph)
         start_id = 0
 
         # input errors
@@ -25,6 +25,26 @@ class GraphSolver:
             return None
         if (end_id < 0 or num_id <= end_id):
             return None
+
+        distances = [self.inf] * num_v
+        distances[end_id] = 0
+        last_visited = [None] * num_v
+        unvisited { id for id in range(0, num_v) }
+
+        # tuple[int]: (id, dist from start)
+        pq = []
+        heappush(pq, (end_id, dists[end_id])
+        while pq:
+            curr_node_id = heappop(pq)
+            for e in graph[curr_node_id]:
+                if (e.weight + dists[curr_node_id]) < distances[e.to_hub]:
+                    dists[e.to_hub] = e.weight + dists[curr_node_id]
+                    last_visited[e.to_hub] = curr_node_id
+                heappush(pq, (e.to_hub, dists[e.to_hub]
+
+
+            
+
 
 
 
