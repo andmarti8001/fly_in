@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from heapq import heappush, heappop
-
+from heapq import heappop, heappush
 from math import inf
 from graph import Vertex
 from models import ZoneType
@@ -55,6 +54,7 @@ class GraphSolver:
         while curr is not None:
             path.append(curr)
             curr = last_visited[curr]
+        breakpoint()
         if len(path) == 0:
             return None
         return path
