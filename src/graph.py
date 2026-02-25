@@ -1,23 +1,28 @@
 
 from __future__ import annotations
 
-from collections import deque
-
-from models import Connection, Hub, ZoneType
+from models import ZoneType
 from parser import Config
 
+
 class Vertex:
-    def __init__(self, edges: list[Edge] | None, cap: int,
-                 zone_type: ZoneType = ZoneType.NORMAL) -> None:
+    def __init__(
+        self,
+        edges: list[Edge] | None = None,
+        cap: int = 1,
+        zone_type: ZoneType = ZoneType.NORMAL
+    ) -> None:
         self.edges = [] if edges is None else edges
         self.cap = cap
         self.zone_type = zone_type
+
 
 class Edge:
     def __init__(self, to_hub: int, cap: int, weight: int) -> None:
         self.to_hub = to_hub
         self.cap = cap
         self.weight = weight
+
 
 class Graph:
     def __init__(self, g: list[Vertex] | None, hub_tot: int | None) -> None:
@@ -51,21 +56,19 @@ class Graph:
         """Return True if vertex_id points to the transit half of a layer."""
         return self.get_base_id(vertex_id) >= self.hub_tot
 
-    # I did this in O(H * C) time but if I instantiated all the vertices in line 14-23
-    # and added the connections as I went it would be O(H + 2C + restricted hubs)
-    # but I tested and don't want to rewrite. all the example maps run in milliseconds
+    # I did this in O(H * C) time but if I instantiated all the vertices
+    # in line 14-23 and added the connections as I went it would be
+    # O(H + 2C + restricted hubs) but I tested and don't want to rewrite.
+    # all the example maps run in milliseconds
     def get_base_graph(self, cfg: Config) -> list[Vertex]:
-        """Build the pre-time-expansion adjacency structure from parsed config.
+        """ Build adjacency list from the Config.
 
-        Layout invariant:
-        - Base hub vertex i is stored at index i.
-        - Transit partner for hub i is stored at index self.get_r_id(i).
-        - Transit vertices are created only for restricted hubs.
-        - Non-restricted hubs use a placeholder transit vertex: Vertex(None, 0).
+        Creates transit-partners for hubs with ZoneType.RESTRICTED
+        all the unused hubs are set to the default empty node Vertex()
         """
         self.hub_tot = len(cfg.hubs)
         base_graph = [[] for _ in range(0, 2 * self.hub_tot)]
-        hub_dict = { hub.name: hub.id for hub in cfg.hubs }
+        hub_dict = {hub.name: hub.id for hub in cfg.hubs}
 
         for i, hub in enumerate(cfg.hubs):
             if hub.id != i:
@@ -76,12 +79,12 @@ class Graph:
                         hub.max_drones,
                         ZoneType.RESTRICTED)
             else:
-                base_graph[self.get_r_id(i)] = Vertex(None, 0)
+                base_graph[self.get_r_id(i)] = Vertex(cap=0)
 
         for i, hub in enumerate(cfg.hubs):
             edges: list[Edge] = []
             cap = hub.max_drones
-            for c in cfg.connections: 
+            for c in cfg.connections:
 
                 if hub.name == c.hub1:
                     h_id = hub_dict[c.hub2]
@@ -106,38 +109,35 @@ class Graph:
             base_graph[i] = Vertex(edges, cap, hub.zone_type)
 
         return base_graph
-            
-                    
-    def get_r_expanded_list(self, base_graph: list[Vertex], t: int) -> list[Vertex]:
+
+    def get_r_expanded_list(
+            self, base_graph: list[Vertex], t: int) -> list[Vertex]:
         """Build the reverse time-expanded graph over t layers.
 
         reverse meaning that the adjacency list goes backwards through time.
         this is useful because you can trace the shortest path from the end
         node, which avoids dead ends and cycles without pruning
-        
+
         waiting constraint: transit-partners of restricted nodes can not
-        wait. once entered the move is fully committed. 
+        wait. once entered the move is fully committed.
         """
-        expanded_size = t * 2 * self.hub_tot
         expanded: list[Vertex] = [
                     Vertex(None, vert.cap, vert.zone_type)
                     for i in range(0, t)
                     for vert in base_graph
                     ]
 
-        for i in range(0, t):
+        for i in range(0, t - 1):
             for j, vert in enumerate(base_graph):
-                if not self.is_transit(get_id_time(j, i))
+                if vert.cap <= 0:
+                    continue
+                if not self.is_transit(self.get_id_time(j, i)):
                     # wait connection but reverse
-                    expanded[get_id_time(j, i + 1)].edges.append(
-                            Edge(get_id_time(j, i),
-                            self.inf,
-                            0))
+                    expanded[self.get_id_time(j, i + 1)].edges.append(
+                                Edge(self.get_id_time(j, i), self.inf, 0))
                 for e in vert.edges:
-                    expanded[get_id_time(j, i + 1)].edges.append(
-                            Edge(get_id_time(j, i),
-                            e.cap,
-                            e.weight))
+                    expanded[self.get_id_time(e.to_hub, i + 1)].edges.append(
+                                Edge(self.get_id_time(j, i), e.cap, e.weight))
 
         return expanded
 
@@ -158,12 +158,14 @@ class Graph:
         print(f"hub_tot={self.hub_tot}, vertices={len(graph_data)}")
         for idx, vert in enumerate(graph_data):
             role = "base" if idx < self.hub_tot else "transit"
+            ve = vert.edges
             print(
                 f"[{idx:>3}] {role:<7} cap={vert.cap:<3} "
-                f"zone={vert.zone_type.value:<10} edges={self._fmt_edges(vert.edges)}"
+                f"zone={vert.zone_type.value:<10} edges={self._fmt_edges(ve)}"
             )
 
-    def print_expanded_graph(self, expanded_graph: list[Vertex], t: int) -> None:
+    def print_expanded_graph(
+            self, expanded_graph: list[Vertex], t: int) -> None:
         """Print the time-expanded graph layer by layer."""
         print("Time Expanded Graph")
         print(f"t={t}, hub_tot={self.hub_tot}, vertices={len(expanded_graph)}")
@@ -173,7 +175,9 @@ class Graph:
                 idx = self.get_id_time(local_id, layer)
                 vert = expanded_graph[idx]
                 role = "base" if local_id < self.hub_tot else "transit"
+                li = local_id
+                vc = vert.cap
                 print(
-                    f"  [{idx:>3}] local={local_id:<3} {role:<7} cap={vert.cap:<3} "
+                    f"  [{idx:>3}] local={li:<3} {role:<7} cap={vc:<3} "
                     f"edges={self._fmt_edges(vert.edges)}"
                 )

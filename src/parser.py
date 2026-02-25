@@ -131,7 +131,7 @@ class Config:
                         err_str += "or 'connection'"
                         raise ValueError(err_str)
                     if key in no_dup:
-                        raise ValueError(f"{key} must not have duplicate configs")
+                        raise ValueError(f"{key}: No have duplicate configs")
                     if all_keys[key]["no_dup"]:
                         no_dup.add(key)
                     if key in {"start_hub", "end_hub"}:
@@ -361,6 +361,7 @@ class Config:
             max_lc
             )
 
+    # ai generated
     def print_hubs(self) -> None:
         """Print all hubs line-by-line with a colored status message."""
         Config.print_in_box("Printing hubs")
@@ -369,6 +370,7 @@ class Config:
             if idx < len(self.hubs) - 1:
                 print()
 
+    # ai generated
     def print_connections(self) -> None:
         """Print all connections line-by-line with a colored status message."""
         Config.print_in_box("Printing connections")
@@ -377,6 +379,7 @@ class Config:
             if idx < len(self.connections) - 1:
                 print()
 
+    # ai generated
     def print(self) -> None:
         """Print all Config attributes with colored section headers."""
         print("\033[95m[CONFIG]\033[0m Printing full configuration")

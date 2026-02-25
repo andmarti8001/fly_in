@@ -70,7 +70,7 @@ class Hub:
         name: str,
         x: int,
         y: int,
-        zone: ZoneType = ZoneType.NORMAL,
+        zone_type: ZoneType = ZoneType.NORMAL,
         color: str | None = None,
         max_drones: int = 1
     ) -> None:
@@ -79,7 +79,7 @@ class Hub:
         self.name = name
         self.x = x
         self.y = y
-        self.zone = zone
+        self.zone_type = zone_type
         self.color = color
         self.max_drones = max_drones
 
@@ -87,12 +87,13 @@ class Hub:
     def reset_next_id(cls) -> None:
         cls._next_id = 0
 
+    # ai generated
     def print(self) -> None:
         print(f"id: {self.id}")
         print(f"name: {self.name}")
         print(f"x: {self.x}")
         print(f"y: {self.y}")
-        print(f"zone: {self.zone.value}")
+        print(f"zone: {self.zone_type.value}")
         color_name: str = self.color if self.color is not None else "none"
         color_lookup: str = self.color if self.color is not None else "default"
         color_code: str = Color.code_for_name(color_lookup)
@@ -112,6 +113,7 @@ class Connection:
         self.hub2 = hub2
         self.max_link_capacity = max_link_capacity
 
+    # ai generated
     def print(self) -> None:
         print(f"hub1: {self.hub1}")
         print(f"hub2: {self.hub2}")
