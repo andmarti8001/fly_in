@@ -1,3 +1,4 @@
+# andmarti
 
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ class Vertex:
 
 
 class Edge:
-    def __init__(self, to_hub: int, cap: int, weight: int) -> None:
+    def __init__(self, to_hub: int, cap: int, weight: float) -> None:
         self.to_hub = to_hub
         self.cap = cap
         self.weight = weight
@@ -56,6 +57,22 @@ class Graph:
         """Return True if vertex_id points to the transit half of a layer."""
         return self.get_base_id(vertex_id) >= self.hub_tot
 
+    def has_solution(self, graph: list[Vertex]) -> bool:
+        q = []
+        visited = set()
+        q.append(0)
+
+        while len(q) > 0:
+            curr = q.pop()
+            for e in graph[curr].edges:
+                # end index
+                if e.to_hub == (len(graph) / 2) - 1:
+                    return True
+                if e.to_hub not in visited:
+                    q.append(e.to_hub)
+                    visited.add(e.to_hub)
+        return False
+
     # I did this in O(H * C) time but if I instantiated all the vertices
     # in line 14-23 and added the connections as I went it would be
     # O(H + 2C + restricted hubs) but I tested and don't want to rewrite.
@@ -67,7 +84,8 @@ class Graph:
         all the unused hubs are set to the default empty node Vertex()
         """
         self.hub_tot = len(cfg.hubs)
-        base_graph = [[] for _ in range(0, 2 * self.hub_tot)]
+        base_graph: list[Vertex] = [Vertex()
+                                    for _ in range(0, 2 * self.hub_tot)]
         hub_dict = {hub.name: hub.id for hub in cfg.hubs}
 
         for i, hub in enumerate(cfg.hubs):
@@ -107,6 +125,8 @@ class Graph:
                 else:
                     edges.append(Edge(h_id, c.max_link_capacity, 1))
             base_graph[i] = Vertex(edges, cap, hub.zone_type)
+        if self.has_solution(base_graph) is False:
+            raise ValueError("the start and end are not connected brother")
 
         return base_graph
 

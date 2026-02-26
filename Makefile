@@ -21,14 +21,14 @@ venv:
 
 install:
 	pip install --upgrade pip && \
-	pip install flake8 mypy build setuptools wheel mazegen-1.0.0.tar.gz
+	pip install flake8 mypy
 
 
 run:
-	python3 $(NAME) $(CONFIG)
+	python3 $(NAME) $(MAP)
 
 debug:
-	python3 -m pdb $(NAME) $(CONFIG)
+	python3 -m pdb $(NAME) $(MAP)
 
 clean:
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 

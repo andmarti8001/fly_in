@@ -1,9 +1,12 @@
+# andmarti
+
 import sys
 
-from heapq import heappop, heappush 
 from graph import Graph
 from parser import Config
+from models import ZoneType
 from solve import GraphSolver
+
 
 class FlyIn:
     @staticmethod
@@ -11,7 +14,17 @@ class FlyIn:
         """Return the time(0) index of any id at any time(t). """
         return vertex_id % (2 * hub_tot)
 
-    def get_base_restrict_from_transit(transit_id: int, hub_tot: int) -> int:
+    @staticmethod
+    def get_r_id(vertex_id: int, hub_tot: int) -> int:
+        """Return the transit-partner id for a restricted node."""
+        return vertex_id + hub_tot
+
+    def get_id_time(self, vertex_id: int, t: int, hub_tot: int) -> int:
+        """Map a base vertex to its time-t partner """
+        return t * (2 * hub_tot) + self.get_base_id(vertex_id, hub_tot)
+
+    def get_base_restrict_from_transit(
+            self, transit_id: int, hub_tot: int) -> int:
         """ return the id of the original base restricted hub id for
         the given transit_id at any time(t)
         """
@@ -25,8 +38,9 @@ class FlyIn:
         self,
         paths: list[list[int]],
         hub_tot: int,
-        cfg: Config
-        ) -> tuple[list[list[str | None]], list[list[int]]] | None:
+        cfg: Config,
+        verbose: bool = False
+    ) -> list[list[str | None]]:
         """ returns a list of moves from the given path
         in D<ID>-<zone/connection> format. a move is added
         to the list when a drone changes positions and
@@ -35,50 +49,52 @@ class FlyIn:
         expected input is a normalized graph with id ranges
         between 0 and 2 * hub_total. so yeah """
         if not paths:
-            return
+            raise ValueError("Paths not inputted")
         upper_limit = 2 * hub_tot
-        last_arrival_time = max([len(p) for p in paths])
-        moves: list[list[str]] = [[] for _ in range(0, len(paths))]
-        moves_hubs: list[list[int]] = [[] for _ in range(0, len(paths))]
+        moves: list[list[str | None]] = [[] for _ in range(0, len(paths))]
         for i, p in enumerate(paths):
             for j in range(0, len(p) - 1):
                 curr_id = self.get_base_id(p[j], hub_tot)
                 next_id = self.get_base_id(p[j + 1], hub_tot)
                 if (curr_id < 0 or upper_limit <= curr_id
-                    or curr_id < 0 or upper_limit <= curr_id):
-                    return None
+                        or curr_id < 0 or upper_limit <= curr_id):
+                    raise ValueError("index out of range")
                 if curr_id == next_id:
                     moves[i].append(None)
-                    moves_hubs[i].append(curr_id)
                     continue
                 # set zone
                 if self.is_transit(next_id, hub_tot):
                     even_next_id = p[j + 2]
                     if not even_next_id:
-                        return None
+                        raise ValueError("should have restricted node")
                     zone = f"{self.get_base_id(curr_id, hub_tot)}-"
                     zone += f"{self.get_base_id(even_next_id, hub_tot)}"
                 else:
                     zone = f"{self.get_base_id(next_id, hub_tot)}"
-                zone_hub = self.get_base_id(curr_id, hub_tot)
                 move = f"D{i + 1}-{zone}"
                 moves[i].append(move)
-                moves_hubs[i].append(zone_hub)
 
-        return moves, moves_hubs
-   
+        return moves
+
     @staticmethod
-    def print_moves(moves: list[list[str | None]]) -> None:
+    def print_moves(
+        moves: list[list[str | None]],
+        verbose: bool = False
+    ) -> None:
+        if verbose:
+            print("************************************************")
+            print("OUTPUTOUTPUTOUTPUTOUTPUTOUTPUTOUTPUTOUTPUTOUTPUT")
+            print("************************************************")
         most_moves = len(max(moves, key=lambda m: len(m)))
-        turns = [[] for _ in range(0, most_moves)]
-        for i in range(0, most_moves): 
+        turns: list[list[str | None]] = [[] for _ in range(0, most_moves)]
+        for i in range(0, most_moves):
             for j in range(0, len(moves)):
                 # will indexError and this is a issue
                 try:
                     if moves[j][i] is None:
                         continue
                     turns[i].append(moves[j][i])
-                except:
+                except Exception:
                     pass
 
         for turn in turns:
@@ -88,75 +104,122 @@ class FlyIn:
                     print(", ", end="")
             print()
 
+    @staticmethod
+    def print_oc(oc: int) -> None:
+        print(f"current occupancy: {oc}")
 
     @staticmethod
-    def print_moves_hub(moves_hub: list[list[int]], cfg: Config) -> None:
-        # initial state
-        print("=======================================")
-        print("TURN#: 0")
-        print("=======================================")
-        cfg.hubs[0].print()
-        print("=======================================")
-        print(f"Current Occupancy: {cfg.nb_drones}")
-        print("=======================================")
-       
-        # moves_hubs to moves by turn without drones IDs
-        # cause whatever
-        most_moves = len(max(moves_hub, key=lambda m: len(m)))
-        turns = [[] for _ in range(0, most_moves)]
-        for i in range(0, most_moves): 
-            for j in range(0, len(moves_hub)):
-                # will indexError and this is a issue
-                # fix later
-                try:
-                    if moves_hub[j][i] is None:
-                        continue
-                    turns[i].append(moves_hub[j][i])
-                except:
-                    pass
-        breakpoint()
-        turn_pq = []
-        for num_turn, turn in enumerate(turns):
+    def print_oc_transit(oc: int) -> None:
+        print(f"current in-transit occupancy: {oc}")
+
+    def print_states(
+        self,
+        paths: list[list[int]],
+        cfg: Config,
+        verbose: bool = False
+    ) -> None:
+        if verbose:
+            print("*********************************************")
+            print("VISUALIZEVISUALIZEVISUALIZEVISUALIZEVISUALIZE")
+            print("*********************************************")
+        # positions... poss pronounced ('pah' 'zez')
+        poss: list[int] = [p for path in paths for p in path]
+        max_moves = len(max(paths, key=lambda p: len(p))) - 1
+        hub_tot = len(cfg.hubs)
+        total_arrived = 0
+        print()
+        for i in range(0, max_moves + 1):
+            print("==================")
+            print(f"== TURN #: {i} ==")
+            print("==================")
             print()
-            print("=======================================")
-            print(f"TURN#: {num_turn + 1}")
-            print("=======================================")
-            hubs = { hub for hub in turn }
-            for hub in hubs:
-                heappush(turn_pq, (hub, len([h 
-                    for h in turn if (h == hub and h is not None)])))
-            while turn_pq:
-                h = heappop(turn_pq)
-                hub_id = h[0]
-                cap = h[1]
-                cfg.hubs[hub_id].print()
-                print("=======================================")
-                print(f"Current Occupancy: {cap}")
-                print("=======================================")
-            
+            if i == 0:
+                cfg.hubs[0].short_print()
+                self.print_oc(cfg.nb_drones)
+                print()
+                continue
+            elif i == max_moves:
+                cfg.hubs[-1].short_print()
+                self.print_oc(cfg.nb_drones)
+            else:
+                for hub in cfg.hubs:
+                    if poss.count(self.get_id_time(hub.id, i, hub_tot)) == 0:
+                        continue
+                    hub.short_print()
+                    if hub.zone_type == ZoneType.RESTRICTED:
+                        self.print_oc_transit(
+                            poss.count(self.get_r_id(
+                                            self.get_id_time(
+                                                hub.id, i, hub_tot),
+                                            hub_tot)))
+                    # end has to add up all the ends up until time t
+                    # because the paths end even though the drones remain
+                    if hub.zone_type == ZoneType.END:
+                        total_arrived += poss.count(
+                                self.get_id_time(hub.id, i, hub_tot))
+                        self.print_oc(total_arrived)
+                    else:
+                        self.print_oc(
+                            poss.count(self.get_id_time(hub.id, i, hub_tot)))
+
+                    print()
 
     def print_output(self, visual_mode: bool = False) -> None:
-        if len(sys.argv) != 2:
-            print(f"Usage: {sys.argv[0]} <map_file>")
+        if not (len(sys.argv) == 2
+                or len(sys.argv) == 3):
+            print(f"Usage: {sys.argv[0]} <flags> <map_file>")
+            print("--visual : outputs the states of each zone with a drone")
             return
 
-        filename = sys.argv[1]
+        if (len(sys.argv) == 3
+                and sys.argv[1] != "--visual"):
+            print("Incorrect Flag")
+            print(f"Usage: {sys.argv[0]} <flags> <map_file>")
+            print("--visual : outputs the states of each zone with a drone")
+            return
+
+        # get config
+        if len(sys.argv) == 3:
+            filename = sys.argv[2]
+        else:
+            filename = sys.argv[1]
         cfg = Config.from_file(filename)
-        
-            
+
+        # get base_graph
         graph = Graph(None, None)
-        base_graph = graph.get_base_graph(cfg)
-        r_expand = graph.get_r_expanded_list(base_graph, 50)
-        solver = GraphSolver(r_expand, cfg.nb_drones)
-        paths = solver.solve()
-        moves_tup = self.get_moves(paths, len(cfg.hubs), cfg)
-        moves = moves_tup[0]
-        moves_hubs= moves_tup[1]
+        try:
+            base_graph = graph.get_base_graph(cfg)
+        except Exception as e:
+            print(e)
+            return
+
+        # time expand and solve
+        # 42 is OUR lucky number
+        t = 42
+        while True:
+            try:
+                r_expand = graph.get_r_expanded_list(base_graph, t)
+                solver = GraphSolver(r_expand, cfg.nb_drones)
+                paths = solver.solve()
+                if not paths:
+                    t += 10
+                    continue
+                break
+            except Exception:
+                t += 10
+
+        # format and print per subject guidelines
+        moves = self.get_moves(paths, len(cfg.hubs), cfg)
         self.print_moves(moves)
-        if visual_mode:
-            self.print_moves_hub(moves_hubs, cfg)
+
+        # visual representation
+        if sys.argv[1] == "--visual":
+            self.print_states(paths, cfg)
 
 
 if __name__ == "__main__":
-    fly_in = FlyIn()
-    fly_in.print_output(visual_mode=True)
+    try:
+        fly_in = FlyIn()
+        fly_in.print_output(visual_mode=True)
+    except Exception as e:
+        print(e)

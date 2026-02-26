@@ -99,7 +99,26 @@ class Hub:
         color_code: str = Color.code_for_name(color_lookup)
         color_swatch: str = f"{color_code}##{Color.RESET.value}"
         print(f"color: {color_name} ({color_swatch})")
-        print(f"max_drones: {self.max_drones}")
+        if (self.zone_type == ZoneType.START
+                or self.zone_type == ZoneType.END):
+            print("max_drones: \u221e")
+        else:
+            print(f"max_drones: {self.max_drones}")
+
+    # ai generated
+    def short_print(self) -> None:
+        print(f"name: {self.name}")
+        print(f"zone: {self.zone_type.value}")
+        color_name: str = self.color if self.color is not None else "none"
+        color_lookup: str = self.color if self.color is not None else "default"
+        color_code: str = Color.code_for_name(color_lookup)
+        color_swatch: str = f"{color_code}##{Color.RESET.value}"
+        print(f"color: {color_name} ({color_swatch})")
+        if (self.zone_type == ZoneType.START
+                or self.zone_type == ZoneType.END):
+            print("max_drones: \u221e")
+        else:
+            print(f"max_drones: {self.max_drones}")
 
 
 class Connection:

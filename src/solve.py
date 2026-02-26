@@ -1,3 +1,5 @@
+# andmarti
+
 from __future__ import annotations
 
 from heapq import heappop, heappush
@@ -28,13 +30,13 @@ class GraphSolver:
 
         dists = [inf] * num_v
         dists[end_id] = 0
-        last_visited = [None] * num_v
+        last_visited: list[int | None] = [None] * num_v
         last_visited[end_id] = None
 
         # tuple[int]: (dist from start, id)
         # heapq does priority queue functions on the first element
         # and if there is a tie continues along the given tuple
-        pq = []
+        pq: list[tuple[float | int, int]] = []
         heappush(pq, (dists[end_id], end_id))
         while pq:
             curr_node_id = heappop(pq)[1]
@@ -49,12 +51,11 @@ class GraphSolver:
                     heappush(pq, (dists[e.to_hub], e.to_hub))
         if last_visited[start_id] is None:
             return None
-        curr = start_id
+        curr: int | None = start_id
         path = []
         while curr is not None:
             path.append(curr)
             curr = last_visited[curr]
-        breakpoint()
         if len(path) == 0:
             return None
         return path

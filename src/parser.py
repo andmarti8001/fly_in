@@ -5,6 +5,10 @@
 # This parser intentionally accepts negative hub coordinates to stay compatible
 # with those official provided maps.
 
+
+# ISSUE 
+# check for duplicates in connections and hubs
+
 from __future__ import annotations
 
 from typing import Any
@@ -167,26 +171,27 @@ class Config:
     def _parse_metadata(
         metadata_token: str,
         obj: str,
-    ) -> dict[Metadata, ZoneType | str | int]:
+    ) -> dict[Metadata, Any]:
         """ takes a str (ex: " [zone=priority color=green max_drones=3] ")
         and also the object whose metadata that will be parsed. Validates
         Metadata and ZoneType for ZONE, string value for COLOR, and a
         positive integer for MAX_DRONES and MAX_LINK_CAPACITY"""
         token: str = metadata_token.strip()
-        parsed: dict[Metadata, ZoneType | str | int] = {}
+        parsed: dict[Metadata, Any] = {}
 
         if not (obj == "hub"
                 or obj == "connection"):
             raise ValueError("Object must be 'hub' or 'connection'")
 
+        valid_metadata: set[Metadata] = set()
         if obj == "hub":
-            valid_metadata: set[Metadata] = {
+            valid_metadata = {
                 Metadata.ZONE,
                 Metadata.COLOR,
                 Metadata.MAX_DRONES,
             }
         else:
-            valid_metadata: set[Metadata] = {
+            valid_metadata = {
                 Metadata.MAX_LINK_CAPACITY,
             }
 
@@ -308,6 +313,7 @@ class Config:
                 Config._parse_int(params[2]),
                 ZoneType.NORMAL if s_or_e is None else ZoneType(s_or_e)
                 )
+
         metadata = Config._parse_metadata(params[3], 'hub')
         zone = ZoneType.NORMAL if s_or_e is None else ZoneType(s_or_e)
         if s_or_e and Metadata.ZONE in metadata:
@@ -315,6 +321,7 @@ class Config:
         zone = metadata.get(Metadata.ZONE, zone)
         color = metadata.get(Metadata.COLOR)
         max_drones = metadata.get(Metadata.MAX_DRONES, 1)
+
         return Hub(
             Config._parse_name(params[0]),
             Config._parse_int(params[1]),
